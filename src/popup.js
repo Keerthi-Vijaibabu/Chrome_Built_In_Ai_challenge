@@ -22,46 +22,140 @@ document.addEventListener('DOMContentLoaded', () => {
   }));
 
   // ------- Enable on-device Summarizer (first-time download) -------
-  btnEnable.addEventListener('click', async () => {
+async function init() {
+  const btnEnable = document.getElementById('btnEnable');
+  const sumOut    = document.getElementById('sumOut');
+
+  // If we already prepared earlier, reflect it in UI.
+  const { sb_ready } = await chrome.storage.local.get('sb_ready');
+  if (sb_ready) markReady();
+
+  btnEnable.addEventListener('click', onEnableClick);
+
+  async function onEnableClick() {
     try {
+      // 1) Feature detect
       if (typeof Summarizer === 'undefined') {
         sumOut.textContent = 'Summarizer API not available in this Chrome.';
         return;
       }
-      const avail = await Summarizer.availability(); // 'downloadable' | 'downloading' | 'ready' | 'unavailable'
+
+      // 2) Check availability
+      const avail = await Summarizer.availability(); // 'ready' | 'downloadable' | 'downloading' | 'unavailable'
       if (avail === 'unavailable') {
         sumOut.textContent = 'On-device model not supported on this device.';
         return;
       }
+
+      // 3) Create summarizer in response to THIS click (user gesture)
+      sumOut.textContent = (avail === 'ready')
+        ? 'Model is ready. Warming up…'
+        : 'Starting model download…';
+
       const summarizer = await Summarizer.create({
         type: 'key-points',
         format: 'markdown',
         length: 'medium',
+        output: { language: "en" },
+        // Progress events while Chrome fetches the model
         monitor(m) {
           m.addEventListener('downloadprogress', e => {
-            sumOut.textContent = `Downloading model… ${e.loaded ?? 0}`;
+            // e.loaded may be bytes or a counter; show as-is
+            sumOut.textContent = `Downloading model… ${e.loaded ?? ''}`;
           });
         }
       });
-      await summarizer.summarize('Ready check.');
-      sumOut.textContent = 'On-device summarizer is ready.';
-      btnEnable.textContent = 'Ready ✓';
-      btnEnable.disabled = true;
-      chrome.storage.local.set({ sb_ready: true });
-    } catch (e) {
-      sumOut.textContent = 'Prep error: ' + (e?.message || String(e));
-    }
-  });
 
-  // ------- Summarize (preview behavior for now) -------
-  btnSummarize.addEventListener('click', () => {
-    const txt = (sumText.value || '').trim()
-      || 'Neural networks learn patterns by adjusting weights to minimize loss.';
-    sumOut.textContent =
-      '• Key idea: ' + txt.slice(0, 80) +
-      '\n• Why it matters: concise notes accelerate review' +
-      '\n• Tip: Turn this into 1–2 flashcards';
-  });
+      // 4) Warmup (small run finalizes readiness)
+      await summarizer.summarize('Ready check.');
+      await chrome.storage.local.set({ sb_ready: true });
+      markReady();
+    } catch (err) {
+      sumOut.textContent = 'Prep error: ' + (err?.message || String(err));
+    }
+  }
+
+  function markReady() {
+    btnEnable.textContent = 'Ready ✓';
+    btnEnable.disabled = true;
+    btnEnable.classList.add('accent');
+    sumOut.textContent = 'On-device summarizer is ready.';
+  }
+}
+  init();
+
+async function getActiveTabId() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  return tab?.id;
+}
+
+// helper injected into the page to collect text
+function __grabTextFromPage() {
+  // 1) selection first
+  const sel = (window.getSelection && window.getSelection().toString().trim()) || "";
+  if (sel) return { text: sel, source: "selection" };
+
+  // 2) try article/main/role="main"
+  const buckets = Array.from(document.querySelectorAll("article, main, [role='main']"));
+  let txt = buckets.map(el => el.innerText || "").join(" ");
+
+  // 3) fallback to body text
+  if (!txt.trim()) txt = document.body?.innerText || "";
+
+  // normalize spaces and limit size (Summarizer doesn't need EVERYTHING)
+  txt = txt.replace(/\s+/g, " ").trim();
+  const MAX = 60000; // ~60k chars for safety
+  if (txt.length > MAX) txt = txt.slice(0, MAX);
+  return { text: txt, source: "page" };
+}
+
+// ---- Summarize button ----
+btnSummarize?.addEventListener("click", async () => {
+  try {
+    // ensure model available
+    if (typeof Summarizer === "undefined") {
+      sumOut.textContent = "Summarizer API not available in this Chrome.";
+      return;
+    }
+
+    // collect text from the active tab
+    sumOut.textContent = "Collecting text…";
+    const tabId = await getActiveTabId();
+    if (!tabId) { sumOut.textContent = "No active tab."; return; }
+
+    const [{ result }] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: __grabTextFromPage
+    });
+
+    const { text, source } = result || {};
+    if (!text || text.length < 40) {
+      sumOut.textContent = "Couldn't read this page. Select some text and try again.";
+      return;
+    }
+
+    // make/create the summarizer (use output language)
+    sumOut.textContent = `Summarizing ${source === "selection" ? "selection" : "page"}…`;
+    const summarizer = await Summarizer.create({
+      type: "key-points",
+      format: "markdown",
+      length: "medium",
+      output: { language: "en" }
+    });
+
+    // optional: short context to shape style
+    const raw = await summarizer.summarize(text, {
+      output: { language: "en" },
+      context: "Audience: student; crisp bullet points; keep numbers; <= 8 bullets."
+    });
+
+    const summary = typeof raw === "string" ? raw : raw?.summary || "";
+    sumOut.textContent = summary || "No summary produced.";
+  } catch (err) {
+    // PDF viewer and some special pages can be restricted; selection still works
+    sumOut.textContent = "Summarize error: " + (err?.message || String(err));
+  }
+});
 
   // ------- Structured preview -------
   document.getElementById('btnStruct').addEventListener('click', () => {
