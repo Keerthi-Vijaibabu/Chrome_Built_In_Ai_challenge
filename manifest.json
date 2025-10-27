@@ -1,0 +1,14 @@
+{
+  "name": "AI study buddy",
+  "description": "Base Level Extension",
+  "version": "1.0",
+  "manifest_version": 3,
+  "action": {
+    "default_title": "Summarise this page",
+    "default_popup": "src/popup.html",
+    "default_icon": "assets/home.png"
+  },
+  "permissions": ["activeTab", "scripting", "offscreen"],
+  "host_permissions": ["<all_urls>"],
+  "background": { "service_worker": "src/summariser/background/background.js", "type": "module"}
+}

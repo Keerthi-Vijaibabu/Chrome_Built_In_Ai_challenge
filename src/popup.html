@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AI Study Buddy — Popup</title>
+<style>
+  :root { color-scheme: light dark; --bg:#0b0c10; --fg:#e5e7eb; --muted:#9ca3af; --card:#111318; --border:#2a2f3a; --accent:#6ee7b7; --accent-2:#93c5fd; --danger:#fca5a5; }
+  body { margin:0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial; width: 450px; background: var(--bg); color: var(--fg); }
+  header { display:flex; align-items:center; gap:10px; padding:10px; border-bottom:1px solid var(--border); background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0)); }
+  header img { width:28px; height:28px; border-radius:8px; box-shadow:0 5px 18px rgba(0,0,0,.25); }
+  header h1 { font-size:15px; font-weight:700; letter-spacing:.2px; margin:0; }
+  nav { margin-left:auto; display:flex; gap:6px; }
+  nav button { appearance:none; border:1px solid var(--border); background: var(--card); color:var(--fg); padding:6px 8px; border-radius:10px; cursor:pointer; font-weight:600; font-size:12px; transition: all .15s ease; }
+  nav button.active { background: var(--fg); color: #0b0c10; border-color: transparent; }
+
+  main { padding:10px; }
+  .panel { display:none; }
+  .panel.active { display:block; }
+  .card { background: var(--card); border:1px solid var(--border); border-radius:14px; padding:10px; box-shadow: 0 8px 30px rgba(0,0,0,.15) inset; }
+  .row { display:flex; align-items:center; gap:8px; margin:8px 0; flex-wrap:wrap; }
+  label { font-size:12px; color:var(--muted); font-weight:600; letter-spacing:.2px; }
+  textarea { width:100%; min-height:84px; max-height:180px; resize:vertical; border-radius:12px; border:1px solid var(--border); background:#0f1116; color:var(--fg); padding:10px; line-height:1.35; }
+  input[type="file"] { display:none; }
+  .file { border:1px dashed var(--border); color:var(--muted); padding:8px 10px; border-radius:12px; cursor:pointer; }
+  .btn { appearance:none; border:1px solid var(--border); background:#11161c; color:var(--fg); padding:8px 10px; border-radius:12px; font-weight:700; letter-spacing:.2px; cursor:pointer; transition: transform .06s ease, filter .15s ease; }
+  .btn:hover { filter:brightness(1.08); }
+  .btn:active { transform: translateY(1px); }
+  .btn.accent { border-color: transparent; background: linear-gradient(130deg, var(--accent), var(--accent-2)); color:#0b0c10; }
+  .btn.ghost { background: transparent; }
+  .hint { font-size:11px; color:var(--muted); }
+  pre.out { white-space:pre-wrap; background:#0d1016; border:1px solid var(--border); border-radius:12px; padding:10px; min-height:68px; }
+  .list { display:grid; gap:8px; max-height:160px; overflow:auto; }
+  .list label { display:flex; align-items:center; gap:8px; background:#0d1016; border:1px solid var(--border); border-radius:12px; padding:8px; }
+  .tag { display:inline-block; font-size:10px; padding:2px 6px; border-radius:999px; border:1px solid var(--border); color:var(--muted); }
+  .pill { display:inline-flex; align-items:center; gap:6px; padding:6px 8px; border-radius:999px; border:1px solid var(--border); font-size:12px; }
+  .right { margin-left:auto; }
+  canvas { width:100%; height:160px; display:block; background:#0d1016; border:1px solid var(--border); border-radius:12px; }
+  ul.cards { list-style:none; padding:0; display:flex; flex-direction:column; gap:8px; }
+  ul.cards li { border:1px solid var(--border); background:#0d1016; border-radius:12px; padding:8px; }
+  ul.cards li b { color:#d1d5db; }
+  .switch { position:relative; width:46px; height:26px; display:inline-block; }
+  .switch input { display:none; }
+  .slider { position:absolute; inset:0; background:#1f2937; border-radius:999px; border:1px solid var(--border); transition: all .2s ease; }
+  .slider::after { content:""; position:absolute; width:20px; height:20px; border-radius:50%; background:#fff; top:2px; left:3px; transition: all .2s ease; }
+  .switch input:checked + .slider { background: linear-gradient(130deg, var(--accent), var(--accent-2)); }
+  .switch input:checked + .slider::after { left:22px; }
+  footer { padding:10px; border-top:1px solid var(--border); color:var(--muted); font-size:11px; text-align:right; }
+</style>
+</head>
+<body>
+  <header>
+    <img src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f4da.png" alt="icon">
+    <h1>AI Study Buddy</h1>
+    <nav>
+      <button class="active" data-tab="summarize">Summarize</button>
+      <button data-tab="structured">Structured</button>
+      <button data-tab="compare">Compare</button>
+      <button data-tab="settings">Settings</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- Summarize Tab -->
+    <section id="summarize" class="panel active">
+      <div class="card">
+        <label>Text or PDF</label>
+        <textarea id="sumText" placeholder="Paste or type text here…"></textarea>
+        <div class="row">
+          <label class="file"><input id="pdfFile" type="file" accept="application/pdf"/> Upload PDF</label>
+          <span class="hint">Uses Chrome's on‑device Summarizer</span>
+          <button id="btnEnable" class="btn ghost right">Enable on‑device summarizer</button>
+          <button id="btnSummarize" class="btn accent">Summarize</button>
+        </div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <div class="pill"><span class="tag">Mode</span> Key points</div>
+        <div class="pill"><span class="tag">Length</span> Medium</div>
+        <div class="pill"><span class="tag">Output</span> Markdown</div>
+      </div>
+      <pre id="sumOut" class="out">(Preview) Your summary will appear here.</pre>
+    </section>
+
+    <!-- Structured Tab -->
+    <section id="structured" class="panel">
+      <div class="card">
+        <label>Input</label>
+        <textarea id="structText" placeholder="Paste an abstract or article…"></textarea>
+        <div class="row">
+          <button id="btnStruct" class="btn accent">Extract O / M / D / R / C</button>
+          <span class="hint">Objective · Method · Dataset · Results · Conclusion</span>
+        </div>
+      </div>
+      <pre id="structOut" class="out">(Preview) Structured summary appears here.</pre>
+    </section>
+
+    <!-- Compare Tab -->
+    <section id="compare" class="panel">
+      <div class="card">
+        <label>Pick saved structured summaries</label>
+        <div id="savedList" class="list"></div>
+        <div class="row">
+          <button id="btnCompare" class="btn accent">Compare selected</button>
+          <span class="hint">Produces common findings, differences, quality flags, best‑for</span>
+        </div>
+      </div>
+      <pre id="cmpOut" class="out">(Preview) Concise comparison goes here.</pre>
+      <canvas id="cmpViz" width="356" height="160"></canvas>
+    </section>
+
+    <!-- Cards Tab -->
+    <section id="cards" class="panel">
+      <div class="card">
+        <label>Make a flashcard or ask for an explanation</label>
+        <textarea id="cardText" placeholder="Paste a concept or definition…"></textarea>
+        <div class="row">
+          <button id="btnCard" class="btn">Create Flashcard</button>
+          <button id="btnExplain" class="btn">Explain (short)</button>
+          <span class="hint">Saved locally for offline review</span>
+        </div>
+      </div>
+      <ul id="cardList" class="cards"></ul>
+    </section>
+
+    <!-- Settings Tab -->
+    <section id="settings" class="panel">
+      <div class="card">
+        <div class="row" style="justify-content:space-between">
+          <div>
+            <div style="font-weight:700">Cloud sync</div>
+            <div class="hint">Opt‑in: sync summaries/cards via Chrome profile</div>
+          </div>
+          <label class="switch">
+            <input id="cloudSync" type="checkbox" />
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="row">
+          <button id="btnClear" class="btn" style="border-color:#3b4252">Clear local data</button>
+          <span class="hint">This removes cached summaries & cards</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    v1.0 · UI preview only — no Chrome APIs are called here
+  </footer>
+<script type="module" src="popup.js"></script>
+</body>
+</html>
