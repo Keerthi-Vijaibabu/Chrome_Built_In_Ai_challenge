@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta http-equiv="origin-trial" content="AnNFxeNVML25OnAsL8TfRNd3aJ7dKeTPLl9A4JWUz59qncyOVy5Phs5AnokXn38D9hC6I2CdiRnvdlHqHPZwSg8AAABseyJvcmlnaW4iOiJjaHJvbWUtZXh0ZW5zaW9uOi8va29oZG1kZ29iYmFqZGdjY21uYmJwZmRmZWltZ2Vta2UiLCJmZWF0dXJlIjoiQUlXcml0ZXJBUEkiLCJleHBpcnkiOjE3Njk0NzIwMDB9">
 <title>AI Study Buddy — Popup</title>
 <style>
   :root { color-scheme: light dark; --bg:#0b0c10; --fg:#e5e7eb; --muted:#9ca3af; --card:#111318; --border:#2a2f3a; --accent:#6ee7b7; --accent-2:#93c5fd; --danger:#fca5a5; }
@@ -101,6 +102,7 @@
         <div id="savedList" class="list"></div>
         <div class="row">
           <button id="btnCompare" class="btn accent">Compare selected</button>
+          <button id="btnSurvey" class="btn">Generate literature survey</button>
           <span class="hint">Produces common findings, differences, quality flags, best‑for</span>
         </div>
       </div>
@@ -144,8 +146,10 @@
   </main>
 
   <footer>
-    v1.0 · UI preview only — no Chrome APIs are called here
+    v1.0 · First release of AI Study Buddy © 2025
   </footer>
+<script src="vendor/pdfjs/pdf.min.js"></script>
+<script src="src/summarizer/pdfjs.js"></script>
 <script type="module" src="popup.js"></script>
 </body>
 </html>
